@@ -1,0 +1,214 @@
+#DESCRIPTION
+Param/CSMULTI/PARAM.in: Cs+/O+ multi-fluid night 10-min smoke test
+
+! ===========================================================================
+! CESIUM CLOUD MULTI-FLUID MHD - NIGHT TEST
+! ===========================================================================
+! 2D Cartesian: x (horizontal perp), y (|| B), no z variation (nK=1)
+! B0 = 40 uT along +y (F-region ~200 km)
+! Domain: [-50km, +50km] x [-50km, +50km] x [-1km, +1km]
+! Cloud center: (25km, 0, 0), initial radius R0=1km
+! Run time: 600 s (10 min)
+! Night: UseDayPhoto=F, NuPh=0 => no photoionization source
+! Non-equilibrium seed: Epsilon0=1e-3 from #NIGHTTHERMAL
+! ===========================================================================
+
+#PLANET
+NONE			NamePlanet
+
+#IOUNITS
+SI			TypeIoUnit
+
+#NORMALIZATION
+READ			TypeNormalization
+1.0e4			No2SiUnitX  [m] (10 km = 1 code unit)
+1.0e3			No2SiUnitU  [m/s] (1 km/s = 1 code unit)
+1.0e-12			No2SiUnitRho [kg/m^3]
+
+#CHECKGRIDSIZE
+16			nI
+16			nJ
+1			nK
+4			MinBlockAll
+
+#GRID
+4			nRootBlock1
+4			nRootBlock2
+1			nRootBlock3
+-5.0			xMin  (-50 km)
+ 5.0			xMax  (+50 km)
+-5.0			yMin  (-50 km)
+ 5.0			yMax  (+50 km)
+-0.1			zMin  (-1 km)
+ 0.1			zMax  (+1 km)
+
+#GRIDLEVEL
+2			nLevel
+initial			StringShape
+
+! Fine resolution near cloud center (25km, 0)
+#GRIDLEVEL
+3			nLevel
+box			StringShape
+1.5			xMinBox  (15 km)
+3.5			xMaxBox  (35 km)
+-1.0			yMinBox  (-10 km)
+1.0			yMaxBox  (+10 km)
+-0.1			zMinBox
+0.1			zMaxBox
+
+#POINTIMPLICIT
+T			UsePointImplicit
+1.0			BetaPointImplicit
+F			IsAsymmetric
+T			DoNormalizeCell
+
+! Two-fluid: Cs+ (132.91 amu) and O+ (16 amu)
+#PLASMA
+132.91			FluidMass Cs+ [amu]
+16.0			FluidMass O+ [amu]
+1.0			IonCharge Cs+ [e]
+1.0			IonCharge O+ [e]
+0.0			ElectronTemperatureRatio
+
+#MULTIION
+1e-15			LowDensityRatio
+1e-20			LowPressureRatio
+F			DoRestrictMultiIon
+
+#TIMEACCURATE
+T			IsTimeAccurate
+
+#SCHEME
+2			nOrder
+Linde			TypeFlux
+minmod			TypeLimiter
+
+#TIMESTEPPING
+2			nStage
+0.4			CflExpl
+
+#NONCONSERVATIVE
+T			UseNonConservative
+
+! ===========================================================================
+! USER INPUTS: Cesium cloud parameters
+! ===========================================================================
+#USERSWITCH
++init +ic +source		StringSwitch
+
+#USERINPUTBEGIN -----------------------------------
+
+! Background: 200 km F-region, B || y = 40 uT
+#CSBACKGROUND
+0.0			B0xSi [T]
+4.0e-5			B0ySi [T] (40 uT along y)
+0.0			B0zSi [T]
+2.0e5			nOpDim [cm^-3] (IRI O+ at 200 km)
+850.0			T0Dim [K]
+5.0e9			nODim [cm^-3] (MSIS neutral O at 200 km)
+1.0e8			nO2Dim [cm^-3] (MSIS O2 placeholder)
+850.0			TCsDim [K]
+
+! Release parameters (1 kg Cs payload)
+#CSCLOUD
+0.1			Yield
+4.53e24			NPayload [atoms]
+1.0e-3			Epsilon0 (night non-equilibrium seed)
+1000.0			R0Si [m] (1 km initial radius)
+0.0			NuPh [s^-1] (night: no photoionization)
+0.0338			NuS [s^-1] (neutral slowing)
+1.32e6			DdiffSi [m^2/s] (diffusion)
+0.9e-16			KcOx [m^3/s] (oxidation; off)
+
+! Cloud center at (25 km, 0, 0)
+#CSCLOUDCENTER
+2.5e4			Rc0xSi [m]
+0.0			Rc0ySi [m]
+0.0			Rc0zSi [m]
+
+! Initial cloud velocity = 0
+#CSCLOUDVEL
+0.0			V0xSi [m/s]
+0.0			V0ySi [m/s]
+0.0			V0zSi [m/s]
+
+! Night: no photoionization
+#DAYPHOTO
+F			UseDayPhoto
+0.0			NuPh
+0.0			UseNuPhAlt
+0.0			NuPhAlt
+
+! Non-equilibrium retained seed (night ionization)
+#NIGHTTHERMAL
+T			UseNightThermal
+1.0e-3			Epsilon0
+
+! Oxidation OFF for night test
+#OXIDATION
+F			UseOxidation
+0.9e-16			KcOx
+
+! Collision coefficients (FP defaults)
+#CSCOLLISION
+6.2e-10			NuCsO_coef [cm^3/s] (Cs+–O Banks/Zhang)
+1.2e-11			NuOpCs_coef [cm^3/s] (O+–Cs+ inter-fluid)
+1.65e-11		NuCsCs_prefac (Cs+–Cs+ self)
+T			FoldN2IntoO
+
+#USERINPUTEND -------------------------------------
+
+! ===========================================================================
+! BOUNDARY CONDITIONS
+! ===========================================================================
+#OUTERBOUNDARY
+float			TypeBc1 MinX
+float			TypeBc2 MaxX
+float			TypeBc3 MinY
+float			TypeBc4 MaxY
+float			TypeBc5 MinZ
+float			TypeBc6 MaxZ
+
+! ===========================================================================
+! OUTPUT
+! ===========================================================================
+#SAVELOGFILE
+T			DoSaveLogfile
+RAW step time		StringLog
+10			DnSaveLogfile
+-1.			DtSaveLogfile
+
+#SAVERESTART
+F			DoSaveRestart
+
+#SAVEINITIAL
+T			DoSaveInitial
+
+#SAVEPLOT
+3			nPlotFile
+z=0 MHD idl		StringPlot
+-1			DnSavePlot
+60.0			DtSavePlot (every 60 s)
+0.0			DxSavePlot
+y=0 MHD idl		StringPlot
+-1			DnSavePlot
+60.0			DtSavePlot
+0.0			DxSavePlot
+cut MHD idl		StringPlot
+-1			DnSavePlot
+60.0			DtSavePlot
+1.5			xMinCut  (15 km)
+3.5			xMaxCut  (35 km)
+-0.01			yMinCut
+0.01			yMaxCut
+-0.01			zMinCut
+0.01			zMaxCut
+0.0			DxSavePlot
+
+! ===========================================================================
+! STOP CONDITION: 10 minutes = 600 seconds
+! ===========================================================================
+#STOP
+-1			MaxIteration
+600.0			tSimulationMax [s]
